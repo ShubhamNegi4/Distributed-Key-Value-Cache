@@ -8,6 +8,7 @@ var Handlers = map[string]func([]resp.Value) resp.Value{
 	"PING": ping,
 	"SET":  set,
 	"GET":  get,
+	"HSET": hset,
 }
 
 func ping(args []resp.Value) resp.Value {

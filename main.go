@@ -2,6 +2,7 @@ package main
 
 import (
 	resp "Distributed_Cache/Resp"
+	handle "Distributed_Cache/commandHandler"
 	"fmt"
 	"net"
 	"strings"
@@ -38,11 +39,15 @@ func main() {
 			continue
 		}
 		command := strings.ToUpper(value.Array[0].Bulk)
-		_ = command
-		_ = value.Array[1:]
+		args := value.Array[1:]
 
-		// Command handlers are not yet implemented. Reply with RESP error for now.
-		errResp := resp.Value{Typ: "error", Str: "ERR unknown command"}
-		_, _ = conn.Write(errResp.Marshal())
+		handler, ok := handle.Handlers[command]
+		if !ok {
+			// write RESP error back without noisy console logs
+			conn.Write(resp.Value{Typ: "error", Str: "ERR unknown command"}.Marshal())
+			continue
+		}
+		result := handler(args)
+		conn.Write(result.Marshal())
 	}
 }

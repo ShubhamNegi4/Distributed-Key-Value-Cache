@@ -27,7 +27,7 @@ func main() {
 	defer aof.Close()
 
 	// Replay AOF file on startup
-	aof.Read(func(value resp.Value) {
+	err = aof.Read(func(value resp.Value) {
 		command := strings.ToUpper(value.Array[0].Bulk)
 		args := value.Array[1:]
 
@@ -39,6 +39,9 @@ func main() {
 
 		handler(args)
 	})
+	if err != nil {
+		fmt.Printf("Error replaying AOF file: %v\n", err)
+	}
 
 	// Accept connections in a loop
 	for {

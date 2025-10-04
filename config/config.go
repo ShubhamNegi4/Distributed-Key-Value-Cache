@@ -1,7 +1,7 @@
 package config
 
 import (
-	persist "Distributed_Cache/Aof"
+	persist "Distributed_Cache/aof"
 	"fmt"
 	"time"
 )

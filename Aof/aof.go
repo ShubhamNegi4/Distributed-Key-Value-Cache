@@ -1,7 +1,7 @@
 package aof
 
 import (
-	resp "Distributed_Cache/Resp"
+	resp "Distributed_Cache/resp"
 	"bufio"
 	"bytes"
 	"crypto/rand"
@@ -433,7 +433,7 @@ func (aof *Aof) GetChecksum() uint64 {
 	return aof.checksum
 }
 
-// close the file
+// Close closes the file
 func (aof *Aof) Close() error {
 	aof.mu.Lock()
 	defer aof.mu.Unlock()

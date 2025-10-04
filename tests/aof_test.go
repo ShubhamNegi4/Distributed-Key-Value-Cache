@@ -1,9 +1,9 @@
 package tests
 
 import (
-	persist "Distributed_Cache/Aof"
-	resp "Distributed_Cache/Resp"
-	handle "Distributed_Cache/commandHandler"
+	persist "Distributed_Cache/aof"
+	handle "Distributed_Cache/commandhandler"
+	resp "Distributed_Cache/resp"
 	"fmt"
 	"os"
 	"strings"
@@ -299,7 +299,7 @@ func BenchmarkAofWrite(b *testing.B) {
 	}
 }
 
-func ExampleAofUsage() {
+func ExampleAof() {
 	// Create AOF with custom configuration
 	config := persist.DefaultAofConfig()
 	config.FsyncPolicy = persist.FsyncAlways // Sync after every write

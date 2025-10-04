@@ -1,9 +1,9 @@
 package main
 
 import (
-	persist "Distributed_Cache/Aof"
-	resp "Distributed_Cache/Resp"
-	handle "Distributed_Cache/commandHandler"
+	persist "Distributed_Cache/aof"
+	handle "Distributed_Cache/commandhandler"
+	resp "Distributed_Cache/resp"
 	"fmt"
 	"net"
 	"strings"

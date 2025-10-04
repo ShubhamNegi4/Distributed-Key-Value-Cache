@@ -1,7 +1,7 @@
 package commandhandler
 
 import (
-	resp "Distributed_Cache/Resp"
+	resp "Distributed_Cache/resp"
 )
 
 var Handlers = map[string]func([]resp.Value) resp.Value{

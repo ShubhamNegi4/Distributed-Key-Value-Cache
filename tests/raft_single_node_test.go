@@ -1,7 +1,7 @@
 package tests
 
 import (
-	raft "Distributed_Cache/raft"
+	raft "Distributed_Cache/Raft"
 	persist "Distributed_Cache/aof"
 	handle "Distributed_Cache/commandhandler"
 	resp "Distributed_Cache/resp"

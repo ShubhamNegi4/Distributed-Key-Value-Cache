@@ -347,6 +347,6 @@ func ExampleAof() {
 	}
 
 	// Output:
-	// File checksum: [some number]
+	// File checksum: 15010441980977024952
 	// Replayed: SET examplekey examplevalue
 }

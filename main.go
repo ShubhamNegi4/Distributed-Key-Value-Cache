@@ -1,11 +1,15 @@
 package main
 
 import (
+	raft "Distributed_Cache/Raft"
 	persist "Distributed_Cache/aof"
 	handle "Distributed_Cache/commandhandler"
 	resp "Distributed_Cache/resp"
+	"bytes"
+	"context"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -43,6 +47,15 @@ func main() {
 		fmt.Printf("Error replaying AOF file: %v\n", err)
 	}
 
+	// Optional Raft integration (single-node) behind env toggle
+	useRaft := os.Getenv("USE_RAFT") == "1"
+	var node raft.Node
+	if useRaft {
+		node = raft.NewSingleNode(1024)
+		// Start applier: consume committed entries, persist to AOF, apply to memory
+		go startApplier(node, aof)
+	}
+
 	// Accept connections in a loop
 	for {
 		conn, err := l.Accept()
@@ -52,11 +65,11 @@ func main() {
 		}
 
 		// Handle each connection in a goroutine
-		go handleConnection(conn, aof)
+		go handleConnection(conn, aof, node)
 	}
 }
 
-func handleConnection(conn net.Conn, aof *persist.Aof) {
+func handleConnection(conn net.Conn, aof *persist.Aof, node raft.Node) {
 	defer conn.Close()
 
 	for {
@@ -83,10 +96,47 @@ func handleConnection(conn net.Conn, aof *persist.Aof) {
 			conn.Write(resp.Value{Typ: "error", Str: "ERR unknown command"}.Marshal())
 			continue
 		}
-		if command == "SET" || command == "HSET" {
+		// If Raft enabled, route mutating commands via Propose
+		if node != nil && (command == "SET" || command == "HSET") {
+			// Propose RESP-framed payload; apply happens in applier goroutine
+			payload := value.Marshal()
+			_ = node.Propose(context.Background(), raft.Command(payload))
+			// Respond optimistically OK (single-node commit is immediate)
+			conn.Write(resp.Value{Typ: "string", Str: "OK"}.Marshal())
+			continue
+		}
+
+		// Non-mutating or Raft disabled: persist then apply for mutating commands
+		if node == nil && (command == "SET" || command == "HSET") {
 			aof.Write(value)
 		}
 		result := handler(args)
 		conn.Write(result.Marshal())
+	}
+}
+
+// startApplier consumes committed commands from Raft and applies them:
+// 1) parse RESP payload
+// 2) append to AOF
+// 3) dispatch to in-memory handlers
+func startApplier(node raft.Node, aof *persist.Aof) {
+	for msg := range node.ApplyCh() {
+		// Parse RESP payload
+		rd := resp.NewResp(bytes.NewReader([]byte(msg.Data)))
+		val, err := rd.Read()
+		if err != nil || val.Typ != "array" || len(val.Array) == 0 {
+			continue
+		}
+		cmd := strings.ToUpper(val.Array[0].Bulk)
+		args := val.Array[1:]
+
+		// Persist only mutating commands
+		if cmd == "SET" || cmd == "HSET" {
+			_ = aof.Write(val)
+		}
+		// Apply to in-memory state
+		if h, ok := handle.Handlers[cmd]; ok {
+			_ = h(args)
+		}
 	}
 }

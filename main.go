@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -47,11 +48,22 @@ func main() {
 		fmt.Printf("Error replaying AOF file: %v\n", err)
 	}
 
-	// Optional Raft integration (single-node) behind env toggle
+	// Optional Raft integration (disk-backed) behind env toggle
 	useRaft := os.Getenv("USE_RAFT") == "1"
 	var node raft.Node
 	if useRaft {
-		node = raft.NewSingleNode(1024)
+		// Build config and storage
+		dataDir := os.Getenv("RAFT_DIR")
+		if dataDir == "" {
+			dataDir = filepath.Join(".", "raftdata")
+		}
+		st, err := raft.NewFileStorage(dataDir)
+		if err != nil {
+			fmt.Println("raft storage error:", err)
+			return
+		}
+		cfg := raft.Config{ID: "node-1", Peers: []string{"node-1"}}
+		node = raft.NewNode(cfg, st)
 		// Start applier: consume committed entries, persist to AOF, apply to memory
 		go startApplier(node, aof)
 	}

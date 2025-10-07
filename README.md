@@ -1,12 +1,12 @@
 ## Distributed_Cache
 
-A lightweight Redis-like cache server with RESP protocol support, AOF durability, and a path to Raft-based replication. Currently supports a robust single-node with append-only file (AOF) persistence and checksum-protected log format.
+A lightweight Redis-like cache server with RESP protocol support, AOF durability, and Raft-backed replication primitives. Single-node Raft is wired end-to-end; an in-memory multi-node demo runs inside one process for learning.
 
-### Quickstart
+### Quickstart (single node)
 
 ```bash
-go run .
-# Server listens on 6379
+USE_RAFT=1 RAFT_DIR=./raftdata go run .
+# Server listens on 6379 with Raft hard-state/log persisted under ./raftdata
 
 # In another terminal
 redis-cli -p 6379 PING
@@ -22,30 +22,42 @@ redis-cli -p 6379 GET foo
   - CRC64 checksums for integrity
   - fsync policies: always, every second, or OS-managed
   - Background rewrite/compaction (configurable)
-- Raft scaffolding for future distributed consensus
+- Raft persistence and primitives:
+  - Disk-backed Raft hard state (`currentTerm`, `votedFor`) and log (`log.bin`)
+  - Minimal elections and heartbeats (in-memory transport)
+  - Basic log replication and quorum commit (in-process demo)
 
 ### Project Structure
 - `main.go`: TCP server and request loop
 - `resp/`: RESP reader and writer
 - `commandhandler/`: in-memory state and command handlers
-- `aof/`: append-only log with checksums and rewrite
+- `aof/`: append-only file (AOF) with checksums and rewrite
 - `config/`: sample AOF configurations
-- `Raft/`: Raft node interface and single-node stub
+- `Raft/`: Raft types, storage, node implementation, and in-memory transport
 - `docs/`: deep dives and design notes
+- `tests/`: AOF tests and in-memory Raft demo
 
 ### Documentation
 - See `docs/architecture.md` for end-to-end flow from request accept to response write
 - See `docs/resp.md` for RESP framing details and examples
 - See `docs/persistence.md` for AOF format, checksums, fsync policies, and rewrite
+- See `docs/raft.md` for Raft integration, storage, and demo details
 
 ### Current Limitations
-- Single-node semantics for writes; Raft integration planned
+- Networked multi-node transport is not yet implemented; demo uses in-memory transport inside one process
 - Minimal command set
 
-### Roadmap (High-level)
-1) Integrate Raft `Propose`/`ApplyCh` in the command pipeline
-2) Implement multi-node transport and basic leader election
-3) Snapshotting and log compaction integration with AOF
-4) Cluster membership and configuration changes
+### How persistence works (Raft + AOF)
+- Writes: client → Raft propose → Raft log persisted → commit → apply to memory → append to AOF → respond
+- Startup: load Raft hard state/log (consensus) and replay AOF to rebuild in-memory data
+
+### Multi-node demo (in one process)
+- Run: `go test ./tests -run TestRaftClusterDemo -v`
+- Behavior: 3 in-memory nodes elect a leader; propose succeeds on the leader
+
+### Roadmap
+- Network transport (HTTP/TCP) for cross-process Raft replication and failover
+- Snapshotting and log compaction integration with AOF
+- Cluster membership and configuration changes
 
 
